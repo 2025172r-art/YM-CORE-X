@@ -1,6 +1,6 @@
 # YM-CORE X — GitHub / Render Edition
 
-日本語UIのプライベートAIワークスペースです。FastAPIサーバーを通じてPollinations APIへ接続し、AIキーをブラウザへ渡さずに利用できます。
+日本語UIのプライベートワークスペースです。標準はAPIキー不要のローカルデモモードで、外部AIサービスへ接続せずチャット画面・履歴・ストリーミングをテストできます。
 
 ## 主な機能
 
@@ -12,15 +12,15 @@
 - `knowledge/game-dev-playbook-ja.md` をサーバー側の専門ナレッジとしてシステム指示へ注入
 - プロジェクト共通知識（エンジン版、命名規則、性能目標、ゲーム仕様）を設定に保存し、毎回の依頼に付与
 - 最大12個のテキスト/ソースコードファイルを同時添付（1ファイル1MB、合計3MB、モデルに渡す本文は最大160,000文字）
-- AIモデル一覧はAPIから動的取得。初期モデルは `openai/gpt-6.2-astra`
+- 標準の応答モードは `demo/local-rules`。デモでは外部AIモデルを呼び出しません。
 - 自動読み上げは初期設定OFF。必要な回答だけ個別の読み上げボタンで再生可能
 
 
 - FastAPIバックエンドとSQLiteによる会話保存
 - パスワードログイン、署名付きHttpOnlyセッション、SameSite Cookie、CSRFトークン
 - 12文字以上のワークスペースパスワード検証、ログイン試行制限
-- PollinationsのOpenAI互換Chat Completions APIをサーバーから利用
-- `/v1/models` からモデル一覧を取得
+- 標準のデモモードはサーバー内の定型応答のみで動作し、APIキー・外部AI通信は不要
+- 既存のPollinations接続コードは、サーバー設定で明示的に有効化された場合だけ使用
 - Server-Sent Eventsによる逐次生成、生成停止、最後の回答の再生成
 - 会話の新規作成、検索、名前変更、削除、Markdown/JSONエクスポート
 - Markdown表示、サニタイズ、コードブロックコピー
@@ -31,7 +31,7 @@
 
 ## RenderへGitHub経由で公開する（おすすめ）
 
-このリポジトリには `render.yaml` を含めています。Render Blueprintとして読み込むと、Web Serviceの基本設定が自動で入ります。アプリのバージョンは2.1.0です。
+このリポジトリには `render.yaml` を含めています。Render Blueprintとして読み込むと、Web Serviceの基本設定が自動で入ります。アプリのバージョンは2.2.0です。標準設定はAPI_PROVIDERではなく `AI_PROVIDER=demo` です。
 
 ### 1. GitHubにリポジトリを作る
 
@@ -49,7 +49,7 @@
 3. `render.yaml` が検出されたら内容を確認して作成します。
 4. 初回セットアップで次の秘密値を入力します。
    - `APP_PASSWORD`: 12文字以上の、他のサービスと使い回さないパスワード
-   - `POLLINATIONS_API_KEY`: PollinationsのAPIキー。未入力ならログイン後の画面は開きますがAI生成は使えません。
+   - `AI_PROVIDER`: 既定は `demo`。デモモードでは外部APIキーの設定は不要です。
    - `SESSION_SECRET`: Blueprintで自動生成されます。手動で上書きする必要はありません。
 5. デプロイ完了後、Renderが表示する `https://....onrender.com` のURLを開き、`APP_PASSWORD` でログインします。
 
@@ -101,7 +101,7 @@ python setup.py
 python app.py
 ```
 
-ブラウザで `http://127.0.0.1:8000` を開きます。初回セットアップで入力したワークスペース用パスワードとAPIキーは `.env` に保存されます。
+ブラウザで `http://127.0.0.1:8000` を開きます。初回セットアップで入力したワークスペース用パスワードは `.env` に保存されます。標準のデモモードではAPIキーを入力する必要はありません。
 
 ## Dockerで起動
 
@@ -131,7 +131,7 @@ Game Dev Brainは専門ナレッジと作業手順を強化したチャット支
 - `GET /api/bootstrap` — 初期状態・CSRFトークン
 - `POST /api/login`, `POST /api/logout` — ログイン/ログアウト
 - `GET /api/health` — サーバー状態・Renderヘルスチェック
-- `GET /api/models` — AIモデル一覧
+- `GET /api/models` — デモモードではローカルのモデル項目を返し、外部APIには接続しません
 - `GET /api/chats`, `POST /api/chats` — 会話一覧/作成
 - `GET /api/chats/{id}/messages` — 会話履歴
 - `PATCH /api/chats/{id}` — タイトル変更
@@ -144,12 +144,12 @@ Game Dev Brainは専門ナレッジと作業手順を強化したチャット支
 python -m unittest discover -s tests -v
 ```
 
-テストはログイン、チャットCRUD、CSRF保護、APIキー未設定時のエラー、基本的なセキュリティヘッダーを確認します。Pollinationsへの実際の生成リクエストはAPIキーとネットワーク環境が必要なため、テストには含めていません。
+テストはログイン、チャットCRUD、CSRF保護、APIキー不要のデモ応答、ローカルモデル一覧、基本的なセキュリティヘッダーを確認します。外部AIサービスへの通信はテストに含めていません。
 
 ## ローカル構成の要件
 
 - Python 3.11以上
-- Pollinations APIキー（AI生成を使う場合）
+- デモモードの実行にはAPIキー不要
 - SQLiteはローカルでは `data/ym-core.db`、Renderの初期無料構成では `/tmp/ym-core.db` に保存
 
 音声入力はブラウザのWeb Speech API対応状況に依存します。添付できるのは最大1MBのテキスト系ファイルです。ファイル本文は会話内容としてAIサービスへ送信されます。
