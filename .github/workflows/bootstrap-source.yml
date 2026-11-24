@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "YM-CORE-X-GameDevBrain-Render.zip"
+      - ".bootstrap/source.b64"
 
 permissions:
   contents: write
@@ -22,8 +22,10 @@ jobs:
           python-version: "3.12"
       - name: Expand project files
         run: |
-          unzip -q -o YM-CORE-X-GameDevBrain-Render.zip -d .
-          rm YM-CORE-X-GameDevBrain-Render.zip
+          base64 --decode .bootstrap/source.b64 > /tmp/ym-core-x-source.zip
+          unzip -q -o /tmp/ym-core-x-source.zip -d .
+          rm -rf .bootstrap /tmp/ym-core-x-source.zip
+          rm -f .github/workflows/bootstrap-source.yml
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
       - name: Compile Python source
@@ -33,7 +35,7 @@ jobs:
       - name: Commit expanded source tree
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+users.noreply.github.com"
           git add -A
           git commit -m "Add YM-CORE X 2.1.0 source tree"
           git push origin HEAD:main
