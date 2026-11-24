@@ -5,6 +5,7 @@
   const welcomeTemplate = $('#welcome').cloneNode(true);
   const state = {
     csrf: '',
+    aiProvider: 'demo',
     chats: [],
     activeChatId: null,
     messages: [],
@@ -19,7 +20,7 @@
   };
 
   const DEFAULTS = {
-    model: 'openai/gpt-6.2-astra',
+    model: 'demo/local-rules',
     systemPrompt: '日本語で、正確・親切・実用的に回答してください。不明点は推測せず明確にしてください。',
     assistantMode: 'game_dev',
     gameEngine: 'auto',
@@ -130,12 +131,20 @@
   async function loadHealth(apiConfigured) {
     try {
       const health = await api('/api/health');
-      const connected = Boolean(health.api_key_configured || apiConfigured);
+      state.aiProvider = health.ai_provider || 'pollinations';
+      const demoMode = state.aiProvider === 'demo';
+      const connected = demoMode || Boolean(health.ai_available || health.api_key_configured || apiConfigured);
       $('#statusDot').className = `status-dot ${connected ? 'online' : 'offline'}`;
-      $('#statusText').textContent = connected ? 'サーバー接続済み · AI利用可能' : 'サーバー接続済み · APIキー未設定';
-      $('#apiKeyStatus').textContent = connected ? '● サーバーにAI APIキーが設定されています' : '● POLLINATIONS_API_KEY が未設定です';
-      $('#serverFoot').textContent = connected ? '会話はこのサーバーに保存されます' : 'サーバーにAPIキーを設定するとAIを利用できます';
-      if (!connected) toast('Renderの環境変数（ローカルでは .env）に POLLINATIONS_API_KEY を設定してください', 5000);
+      $('#statusText').textContent = demoMode
+        ? 'サーバー接続済み · ローカルデモ'
+        : connected ? 'サーバー接続済み · AI利用可能' : 'サーバー接続済み · APIキー未設定';
+      $('#apiKeyStatus').textContent = demoMode
+        ? '● ローカルデモ動作中（APIキー不要・外部AI通信なし）'
+        : connected ? '● サーバーにAI APIキーが設定されています' : '● AI APIキーが未設定です';
+      $('#serverFoot').textContent = demoMode
+        ? 'デモ応答です。外部AIへは接続していません'
+        : connected ? '会話はこのサーバーに保存されます' : 'サーバー側のAI接続設定が必要です';
+      if (!connected) toast('サーバー側のAI接続設定を確認してください', 5000);
     } catch (error) {
       $('#statusDot').className = 'status-dot offline';
       $('#statusText').textContent = 'サーバー状態を確認できません';
@@ -219,7 +228,7 @@
       const result = await api('/api/models');
       state.models = result.models || [];
       const select = $('#modelSelect');
-      const preferred = select.dataset.savedModel || select.value || DEFAULTS.model;
+      const preferred = result.provider === 'demo' ? 'demo/local-rules' : (select.dataset.savedModel || select.value || DEFAULTS.model);
       select.replaceChildren();
       for (const model of state.models) {
         const option = document.createElement('option');
@@ -234,7 +243,9 @@
         select.add(fallback);
       }
       select.value = preferred;
-      $('#modelHelp').textContent = `${state.models.length} モデルを取得しました。`;
+      $('#modelHelp').textContent = result.provider === 'demo'
+        ? 'ローカルデモ応答です。外部AIモデルには接続しません。'
+        : `${state.models.length} モデルを取得しました。`;
       $('#modelPill').textContent = select.value;
       if (showToast) toast('モデル一覧を更新しました');
     } catch (error) {
@@ -490,7 +501,9 @@
     $('#sendBtn').hidden = busy;
     $('#stopBtn').hidden = !busy;
     $('#statusDot').className = `status-dot ${busy ? 'busy' : 'online'}`;
-    $('#statusText').textContent = busy ? 'AIが回答を生成中...' : 'サーバー接続済み';
+    $('#statusText').textContent = busy
+      ? (state.aiProvider === 'demo' ? 'デモ応答を生成中...' : 'AIが回答を生成中...')
+      : (state.aiProvider === 'demo' ? 'サーバー接続済み · ローカルデモ' : 'サーバー接続済み');
     $('#userInput').disabled = busy;
     $('#sendBtn').disabled = busy;
     renderSidebar();
