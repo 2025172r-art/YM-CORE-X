@@ -9,10 +9,11 @@ _temp = tempfile.TemporaryDirectory()
 os.environ["APP_PASSWORD"] = "unit-test-password-123"
 os.environ["SESSION_SECRET"] = "unit-test-session-secret-long-enough-for-tests-123456"
 os.environ["POLLINATIONS_API_KEY"] = ""
+os.environ["AI_PROVIDER"] = "demo"
 os.environ["DATABASE_PATH"] = str(Path(_temp.name) / "test.db")
 
 from fastapi.testclient import TestClient  # noqa: E402
-from app import app, build_system_prompt, ChatRequest  # noqa: E402
+from app import app, build_system_prompt, build_demo_reply, ChatRequest  # noqa: E402
 
 
 class ServerSmokeTests(unittest.TestCase):
@@ -47,8 +48,19 @@ class ServerSmokeTests(unittest.TestCase):
         renamed = self.client.patch(f"/api/chats/{chat_id}", json={"title": "renamed"}, headers=self.headers())
         self.assertEqual(renamed.status_code, 200)
 
-        no_key = self.client.post(f"/api/chats/{chat_id}/stream", json={"content": "hello"}, headers=self.headers())
-        self.assertEqual(no_key.status_code, 503)
+        demo_response = self.client.post(
+            f"/api/chats/{chat_id}/stream",
+            json={"content": "hello"},
+            headers=self.headers(),
+        )
+        self.assertEqual(demo_response.status_code, 200)
+        self.assertIn("デモモード", demo_response.text)
+        self.assertIn('"done": true', demo_response.text)
+
+        messages = self.client.get(f"/api/chats/{chat_id}/messages")
+        self.assertEqual(messages.status_code, 200)
+        self.assertEqual([item["role"] for item in messages.json()], ["user", "assistant"])
+        self.assertIn("外部AIサービス", messages.json()[-1]["content"])
 
         deleted = self.client.delete(f"/api/chats/{chat_id}", headers=self.headers())
         self.assertEqual(deleted.status_code, 200)
@@ -69,8 +81,29 @@ class ServerSmokeTests(unittest.TestCase):
     def test_game_dev_brain_health(self):
         health = self.client.get("/api/health")
         self.assertEqual(health.status_code, 200)
-        self.assertEqual(health.json()["version"], "2.1.0")
+        self.assertEqual(health.json()["version"], "2.2.0")
         self.assertTrue(health.json()["game_dev_brain"])
+        self.assertEqual(health.json()["ai_provider"], "demo")
+        self.assertTrue(health.json()["ai_available"])
+
+    def test_demo_model_catalog_is_local(self):
+        good = self.client.post("/api/login", json={"password": os.environ["APP_PASSWORD"]}, headers=self.headers())
+        self.assertEqual(good.status_code, 200)
+        self.csrf = good.json()["csrf"]
+
+        result = self.client.get("/api/models")
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()["provider"], "demo")
+        self.assertEqual(result.json()["models"][0]["id"], "demo/local-rules")
+
+    def test_demo_reply_discloses_that_it_is_not_an_ai_model(self):
+        reply = build_demo_reply(
+            ChatRequest(assistant_mode="game_dev", game_engine="godot", game_task="debug"),
+            "Godotのエラーを確認したい",
+        )
+        self.assertIn("外部AIサービス", reply)
+        self.assertIn("Godot", reply)
+        self.assertIn("デバッグ・バグ修正", reply)
 
 
     def test_game_dev_brain_injects_engine_and_project_context(self):
@@ -98,7 +131,7 @@ class ServerSmokeTests(unittest.TestCase):
         self.assertIn('id="autoRead" type="checkbox"', html)
         self.assertIn("autoRead: false", js)
         self.assertIn("getSettings().autoRead", js)
-        self.assertIn("model: 'openai/gpt-6.2-astra'", js)
+        self.assertIn("model: 'demo/local-rules'", js)
         self.assertIn("multiple accept=", html)
         self.assertIn("function handleFiles(fileList)", js)
         self.assertIn("saved.model === 'openai/gpt-5.4-nano'", js)
