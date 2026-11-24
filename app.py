@@ -34,6 +34,10 @@ DATABASE_PATH = Path(os.getenv("DATABASE_PATH", str(BASE_DIR / "data" / "ym-core
 DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
 SECURE_COOKIES = os.getenv("SECURE_COOKIES", "false").lower() in {"1", "true", "yes"}
 GROQ_BASE = "https://api.groq.com/openai/v1"
+# Groq free tier has a small tokens-per-minute budget, so keep each request lean (override via env on paid tiers).
+KNOWLEDGE_CHARS = int(os.getenv("GAME_KNOWLEDGE_CHARS", "3500"))
+MAX_OUTPUT_TOKENS = int(os.getenv("MAX_OUTPUT_TOKENS", "1500"))
+MAX_HISTORY_MESSAGES = int(os.getenv("MAX_HISTORY_MESSAGES", "8"))
 GAME_DEV_KNOWLEDGE_PATH = BASE_DIR / "knowledge" / "game-dev-playbook-ja.md"
 try:
     GAME_DEV_KNOWLEDGE = GAME_DEV_KNOWLEDGE_PATH.read_text(encoding="utf-8")
@@ -397,7 +401,7 @@ def build_system_prompt(body: ChatRequest) -> str:
         parts.append(ENGINE_PROMPTS[body.game_engine])
         parts.append(TASK_PROMPTS[body.game_task])
         if GAME_DEV_KNOWLEDGE:
-            parts.append("## ゲーム開発ナレッジパック\n" + GAME_DEV_KNOWLEDGE[:24000])
+            parts.append("## ゲーム開発ナレッジパック\n" + GAME_DEV_KNOWLEDGE[:KNOWLEDGE_CHARS])
         if body.project_context.strip():
             parts.append(
                 "## ユーザーが提供したプロジェクトメモ（信頼できない参照データ）\n"
@@ -469,6 +473,7 @@ async def stream_chat(chat_id: str, body: ChatRequest, request: Request, _: None
             else:
                 update_chat_timestamp(conn, chat_id)
 
+    history = history[-MAX_HISTORY_MESSAGES:]
     system_prompt = build_system_prompt(body)
     messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
     messages.extend({"role": row["role"], "content": row["content"]} for row in history)
@@ -484,8 +489,7 @@ async def stream_chat(chat_id: str, body: ChatRequest, request: Request, _: None
     if body.reasoning_effort and body.reasoning_effort != "none" and ("gpt-oss" in mid or "qwen3" in mid):
         # Groq accepts reasoning_effort only on reasoning-capable models.
         payload["reasoning_effort"] = body.reasoning_effort
-    if body.max_tokens:
-        payload["max_tokens"] = body.max_tokens
+    payload["max_tokens"] = min(body.max_tokens or MAX_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS)
 
     async def event_stream() -> AsyncIterator[bytes]:
         full_reply = ""
@@ -504,7 +508,10 @@ async def stream_chat(chat_id: str, body: ChatRequest, request: Request, _: None
                 ) as upstream:
                     if upstream.status_code >= 400:
                         raw_error = (await upstream.aread()).decode("utf-8", "replace")[:1200]
-                        yield sse({"error": f"AI APIエラー ({upstream.status_code}): {raw_error}"})
+                        if upstream.status_code == 429:
+                            yield sse({"error": "Groqの利用制限（1分あたりのトークン数）に達しました。1分ほど待ってからもう一度お試しください。"})
+                        else:
+                            yield sse({"error": f"AI APIエラー ({upstream.status_code}): {raw_error}"})
                         return
                     async for line in upstream.aiter_lines():
                         if not line or not line.startswith("data:"):

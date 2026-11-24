@@ -28,8 +28,8 @@
     autoRead: false,
     temperature: 0.7,
     reasoning: 'high',
-    historyLimit: 40,
-    maxTokens: 8192,
+    historyLimit: 8,
+    maxTokens: 2048,
   };
 
   function toast(message, duration = 2600) {
