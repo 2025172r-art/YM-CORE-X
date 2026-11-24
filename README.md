@@ -31,7 +31,7 @@
 
 ## RenderへGitHub経由で公開する（おすすめ）
 
-このリポジトリには `render.yaml` を含めています。Render Blueprintとして読み込むと、Web Serviceの基本設定が自動で入ります。アプリのバージョンは2.2.0です。標準設定はAPI_PROVIDERではなく `AI_PROVIDER=demo` です。
+このリポジトリには `render.yaml` を含めています。Render Blueprintとして読み込むと、Web Serviceの基本設定が自動で入ります。アプリのバージョンは2.2.0です。既定の接続モードは `AI_PROVIDER=demo` です。
 
 ### 1. GitHubにリポジトリを作る
 
@@ -49,7 +49,6 @@
 3. `render.yaml` が検出されたら内容を確認して作成します。
 4. 初回セットアップで次の秘密値を入力します。
    - `APP_PASSWORD`: 12文字以上の、他のサービスと使い回さないパスワード
-   - `AI_PROVIDER`: 既定は `demo`。デモモードでは外部APIキーの設定は不要です。
    - `SESSION_SECRET`: Blueprintで自動生成されます。手動で上書きする必要はありません。
 5. デプロイ完了後、Renderが表示する `https://....onrender.com` のURLを開き、`APP_PASSWORD` でログインします。
 
