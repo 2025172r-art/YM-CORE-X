@@ -11,6 +11,8 @@ services:
     envVars:
       - key: APP_NAME
         value: YM-CORE X
+      - key: AI_PROVIDER
+        value: demo
       - key: APP_PASSWORD
         sync: false
       - key: SESSION_SECRET
