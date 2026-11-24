@@ -11,12 +11,12 @@ services:
     envVars:
       - key: APP_NAME
         value: YM-CORE X
+      - key: AI_PROVIDER
+        value: demo
       - key: APP_PASSWORD
         sync: false
       - key: SESSION_SECRET
         generateValue: true
-      - key: POLLINATIONS_API_KEY
-        sync: false
       - key: DATABASE_PATH
         value: /tmp/ym-core.db
       - key: SECURE_COOKIES

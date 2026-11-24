@@ -57,7 +57,7 @@
           <div><div class="page-title">INTELLIGENCE CONSOLE</div><div class="connection"><span id="statusDot" class="status-dot"></span><span id="statusText">サーバーに接続中...</span></div></div>
         </div>
         <div class="top-actions">
-          <span id="modePill" class="model-pill">GAME DEV BRAIN</span><span id="modelPill" class="model-pill">モデル読み込み中...</span>
+          <span id="modePill" class="model-pill">GAME DEV BRAIN</span><span id="modelPill" class="model-pill">ローカルデモ</span>
           <button id="themeBtn" class="top-btn" title="テーマ切替">◐</button>
           <button id="settingsBtn" class="top-btn">⚙ 設定</button>
         </div>
@@ -111,7 +111,7 @@
   <section id="settingsPanel" class="settings-panel" aria-label="設定" hidden>
     <div class="settings-head"><div><span class="eyebrow">CONTROL CENTER</span><h2>ワークスペース設定</h2></div><button id="closeSettingsBtn" class="close-btn" aria-label="閉じる">×</button></div>
     <div class="settings-body">
-      <div class="setting-group"><label for="modelSelect">AIモデル</label><div class="field-row"><select id="modelSelect"><option value="openai/gpt-6.2-astra">openai/gpt-6.2-astra</option></select><button id="refreshModelsBtn" class="secondary-btn" type="button">↻</button></div><small id="modelHelp">高性能モデルを初期選択。最新のモデル一覧はサーバー経由で取得します。</small></div>
+      <div class="setting-group"><label for="modelSelect">応答モード</label><div class="field-row"><select id="modelSelect"><option value="demo/local-rules">ローカルデモ応答（API不要）</option></select><button id="refreshModelsBtn" class="secondary-btn" type="button">↻</button></div><small id="modelHelp">外部AIへ接続しないデモ応答です。</small></div>
       <div class="setting-group"><label for="assistantMode">AIモード</label><select id="assistantMode"><option value="game_dev" selected>🎮 Game Dev Brain — ゲーム制作特化</option><option value="general">✦ General — 汎用アシスタント</option></select><small>ゲーム制作モードでは、同梱の専門ナレッジとエンジン別の設計基準を常時適用します。</small></div>
       <div id="gameBrainFields" class="brain-card">
         <div class="brain-heading"><span>🎮 GAME DEVELOPMENT BRAIN</span><span class="brain-status">SPECIALIST MODE</span></div>
@@ -126,7 +126,7 @@
       <div class="setting-group"><label for="historyLimit">会話履歴</label><select id="historyLimit"><option value="8">直近8件</option><option value="16">直近16件</option><option value="30">直近30件</option><option value="40" selected>直近40件</option><option value="50">直近50件</option><option value="80">直近80件</option></select></div>
       <div class="setting-group"><label for="maxTokens">最大出力トークン</label><select id="maxTokens"><option value="2048">2,048</option><option value="4096">4,096</option><option value="8192" selected>8,192</option><option value="16384">16,384</option></select></div>
       <div class="setting-group"><label class="setting-checkbox" for="autoRead"><input id="autoRead" type="checkbox"> 回答を自動で読み上げる</label><small>初期設定はオフです。読み上げたい回答だけ、各メッセージの「読み上げ」を押して再生できます。</small></div>
-      <div class="security-card"><div class="security-icon">◆</div><div><strong>サーバー保護が有効</strong><p>APIキーはサーバーの環境変数に保存され、ブラウザには送信されません。会話データはSQLiteに保存されます。</p><span id="apiKeyStatus" class="security-status">API接続状態を確認中...</span></div></div>
+      <div class="security-card"><div class="security-icon">◆</div><div><strong>ローカルデモモード</strong><p>APIキーは不要です。チャット入力はこのアプリ内の定型処理で応答し、外部AIサービスには送信しません。会話データはSQLiteに保存されます。</p><span id="apiKeyStatus" class="security-status">ローカルデモの状態を確認中...</span></div></div>
     </div>
     <div class="settings-footer"><button id="resetSettingsBtn" class="secondary-btn">初期設定に戻す</button><button id="saveSettingsBtn" class="primary-btn">設定を保存</button></div>
   </section>

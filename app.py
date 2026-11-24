@@ -34,6 +34,9 @@ DATABASE_PATH = Path(os.getenv("DATABASE_PATH", str(BASE_DIR / "data" / "ym-core
 DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
 SECURE_COOKIES = os.getenv("SECURE_COOKIES", "false").lower() in {"1", "true", "yes"}
 POLLINATIONS_BASE = "https://gen.pollinations.ai"
+AI_PROVIDER = os.getenv("AI_PROVIDER", "demo").strip().lower()
+if AI_PROVIDER not in {"demo", "pollinations"}:
+    AI_PROVIDER = "demo"
 GAME_DEV_KNOWLEDGE_PATH = BASE_DIR / "knowledge" / "game-dev-playbook-ja.md"
 try:
     GAME_DEV_KNOWLEDGE = GAME_DEV_KNOWLEDGE_PATH.read_text(encoding="utf-8")
@@ -145,7 +148,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title=APP_NAME, version="2.1.0", lifespan=lifespan)
+app = FastAPI(title=APP_NAME, version="2.2.0", lifespan=lifespan)
 app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET,
@@ -190,7 +193,7 @@ class ChatRenameBody(BaseModel):
 
 class ChatRequest(BaseModel):
     content: str = Field(default="", max_length=400000)
-    model: str = Field(default="openai/gpt-6.2-astra", min_length=1, max_length=160)
+    model: str = Field(default="demo/local-rules", min_length=1, max_length=160)
     system_prompt: str = Field(default="", max_length=5000)
     assistant_mode: Literal["general", "game_dev"] = "game_dev"
     game_engine: Literal["auto", "unity", "unreal", "godot", "roblox", "web", "other"] = "auto"
@@ -255,7 +258,8 @@ async def bootstrap(request: Request) -> dict[str, Any]:
         "authenticated": bool(request.session.get("authenticated")),
         "csrf": get_csrf(request),
         "auth_configured": configured,
-        "api_configured": bool(POLLINATIONS_API_KEY),
+        "api_configured": AI_PROVIDER == "demo" or bool(POLLINATIONS_API_KEY),
+        "ai_provider": AI_PROVIDER,
     }
 
 
@@ -299,13 +303,21 @@ async def health() -> dict[str, Any]:
         "status": "ok",
         "database": DATABASE_PATH.exists(),
         "api_key_configured": bool(POLLINATIONS_API_KEY),
-        "version": "2.1.0",
+        "ai_provider": AI_PROVIDER,
+        "ai_available": AI_PROVIDER == "demo" or bool(POLLINATIONS_API_KEY),
+        "version": "2.2.0",
         "game_dev_brain": bool(GAME_DEV_KNOWLEDGE),
     }
 
 
 @app.get("/api/models")
 async def models(_: None = Depends(require_auth)) -> dict[str, Any]:
+    if AI_PROVIDER == "demo":
+        return {
+            "models": [{"id": "demo/local-rules", "name": "ローカルデモ応答", "publisher": "YM-CORE X"}],
+            "count": 1,
+            "provider": "demo",
+        }
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             response = await client.get(f"{POLLINATIONS_BASE}/v1/models")
@@ -324,7 +336,7 @@ async def models(_: None = Depends(require_auth)) -> dict[str, Any]:
                 "publisher": item.get("owned_by") or item.get("publisher") or "",
             })
         output.sort(key=lambda x: (not x["id"].startswith("openai/"), x["id"].lower()))
-        return {"models": output, "count": len(output)}
+        return {"models": output, "count": len(output), "provider": "pollinations"}
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"モデル一覧を取得できませんでした: {exc.__class__.__name__}") from exc
     except (ValueError, TypeError) as exc:
@@ -409,6 +421,66 @@ def build_system_prompt(body: ChatRequest) -> str:
     return "\n\n".join(parts)
 
 
+def build_demo_reply(body: ChatRequest, user_text: str) -> str:
+    """Create an explicitly labelled local response without calling an AI provider."""
+    excerpt = user_text.strip()[:700]
+    if len(user_text.strip()) > 700:
+        excerpt += "\n…（表示は先頭700文字まで）"
+    quoted = "\n".join(f"> {line}" if line else ">" for line in excerpt.splitlines()) or "> （空の入力）"
+
+    if body.assistant_mode == "game_dev":
+        engines = {
+            "auto": "自動判定",
+            "unity": "Unity",
+            "unreal": "Unreal Engine",
+            "godot": "Godot",
+            "roblox": "Roblox",
+            "web": "Webゲーム",
+            "other": "その他",
+        }
+        tasks = {
+            "auto": "自動選択",
+            "design": "企画・ゲームデザイン",
+            "architecture": "アーキテクチャ設計",
+            "implementation": "実装・機能開発",
+            "debug": "デバッグ・バグ修正",
+            "optimization": "パフォーマンス最適化",
+            "review": "コードレビュー",
+            "release": "テスト・リリース準備",
+        }
+        return (
+            "## ローカルデモ応答\n\n"
+            "これは**デモモード**の定型応答です。外部AIサービスやAIモデルには接続しておらず、"
+            "入力に対する推論・コード検証は行っていません。チャット画面、ストリーミング、履歴保存の確認に使えます。\n\n"
+            "### 受け取った入力\n"
+            f"{quoted}\n\n"
+            "### 現在の設定\n"
+            f"- モード: Game Dev Brain\n"
+            f"- エンジン: {engines[body.game_engine]}\n"
+            f"- 重点タスク: {tasks[body.game_task]}\n"
+            f"- プロジェクトメモ: {'あり' if body.project_context.strip() else 'なし'}\n\n"
+            "### 実AI接続前に確認すること\n"
+            "1. 対象エンジンとバージョンを明確にする\n"
+            "2. 関連するソースコードやエラーログを添付する\n"
+            "3. 変更内容と動作確認の結果を分けて記録する\n\n"
+            "この応答はローカルの動作確認用であり、実際のAIによる回答ではありません。"
+        )
+
+    return (
+        "## ローカルデモ応答\n\n"
+        "YM-CORE Xはデモモードで動作しています。外部AIサービスには接続せず、"
+        "この入力を保存して画面表示・会話履歴・ストリーミング機能を確認しています。\n\n"
+        "### 受け取った入力\n"
+        f"{quoted}\n\n"
+        "### デモで確認できる機能\n"
+        "- メッセージの送受信表示\n"
+        "- 会話履歴の保存と再読み込み\n"
+        "- Markdown形式の表示\n"
+        "- 添付テキストを含む入力処理\n\n"
+        "実際のAI回答、事実確認、コード実行は行っていません。"
+    )
+
+
 def message_rows(chat_id: str) -> list[dict[str, str]]:
     with connect_db() as conn:
         rows = conn.execute("SELECT role, content FROM messages WHERE chat_id = ? ORDER BY id ASC", (chat_id,)).fetchall()
@@ -419,7 +491,7 @@ def message_rows(chat_id: str) -> list[dict[str, str]]:
 async def stream_chat(chat_id: str, body: ChatRequest, request: Request, _: None = Depends(require_auth)) -> StreamingResponse:
     require_csrf(request)
     verify_chat(chat_id)
-    if not POLLINATIONS_API_KEY:
+    if AI_PROVIDER == "pollinations" and not POLLINATIONS_API_KEY:
         raise HTTPException(status_code=503, detail="サーバーに POLLINATIONS_API_KEY が設定されていません")
 
     with connect_db() as conn:
@@ -484,44 +556,52 @@ async def stream_chat(chat_id: str, body: ChatRequest, request: Request, _: None
     async def event_stream() -> AsyncIterator[bytes]:
         full_reply = ""
         try:
-            timeout = httpx.Timeout(connect=20, read=180, write=30, pool=20)
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                async with client.stream(
-                    "POST",
-                    f"{POLLINATIONS_BASE}/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {POLLINATIONS_API_KEY}",
-                        "Content-Type": "application/json",
-                        "Accept": "text/event-stream",
-                    },
-                    json=payload,
-                ) as upstream:
-                    if upstream.status_code >= 400:
-                        raw_error = (await upstream.aread()).decode("utf-8", "replace")[:1200]
-                        yield sse({"error": f"AI APIエラー ({upstream.status_code}): {raw_error}"})
+            if AI_PROVIDER == "demo":
+                full_reply = build_demo_reply(body, user_text)
+                for offset in range(0, len(full_reply), 96):
+                    if await request.is_disconnected():
                         return
-                    async for line in upstream.aiter_lines():
-                        if not line or not line.startswith("data:"):
-                            continue
-                        raw = line[5:].strip()
-                        if raw == "[DONE]":
-                            break
-                        try:
-                            chunk = json.loads(raw)
-                        except json.JSONDecodeError:
-                            continue
-                        choices = chunk.get("choices") or []
-                        if not choices:
-                            if chunk.get("error"):
-                                yield sse({"error": str(chunk["error"])[:1000]})
-                            continue
-                        delta = choices[0].get("delta") or {}
-                        content = delta.get("content") or ""
-                        if isinstance(content, list):
-                            content = "".join(str(part.get("text", "")) for part in content if isinstance(part, dict))
-                        if content:
-                            full_reply += str(content)
-                            yield sse({"delta": str(content)})
+                    yield sse({"delta": full_reply[offset:offset + 96]})
+                    await asyncio.sleep(0.008)
+            else:
+                timeout = httpx.Timeout(connect=20, read=180, write=30, pool=20)
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    async with client.stream(
+                        "POST",
+                        f"{POLLINATIONS_BASE}/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {POLLINATIONS_API_KEY}",
+                            "Content-Type": "application/json",
+                            "Accept": "text/event-stream",
+                        },
+                        json=payload,
+                    ) as upstream:
+                        if upstream.status_code >= 400:
+                            raw_error = (await upstream.aread()).decode("utf-8", "replace")[:1200]
+                            yield sse({"error": f"AI APIエラー ({upstream.status_code}): {raw_error}"})
+                            return
+                        async for line in upstream.aiter_lines():
+                            if not line or not line.startswith("data:"):
+                                continue
+                            raw = line[5:].strip()
+                            if raw == "[DONE]":
+                                break
+                            try:
+                                chunk = json.loads(raw)
+                            except json.JSONDecodeError:
+                                continue
+                            choices = chunk.get("choices") or []
+                            if not choices:
+                                if chunk.get("error"):
+                                    yield sse({"error": str(chunk["error"])[:1000]})
+                                continue
+                            delta = choices[0].get("delta") or {}
+                            content = delta.get("content") or ""
+                            if isinstance(content, list):
+                                content = "".join(str(part.get("text", "")) for part in content if isinstance(part, dict))
+                            if content:
+                                full_reply += str(content)
+                                yield sse({"delta": str(content)})
             if full_reply:
                 with connect_db() as conn:
                     conn.execute(
@@ -536,8 +616,9 @@ async def stream_chat(chat_id: str, body: ChatRequest, request: Request, _: None
             yield sse({"error": "AI APIの応答がタイムアウトしました。もう一度お試しください。"})
         except httpx.HTTPError as exc:
             yield sse({"error": f"AI APIに接続できませんでした ({exc.__class__.__name__})"})
-        except Exception as exc:  # Keep the stream protocol intact for unexpected upstream failures.
+        except Exception as exc:
             yield sse({"error": f"サーバー内部エラー ({exc.__class__.__name__})"})
+
 
     return StreamingResponse(
         event_stream(),
