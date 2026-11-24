@@ -1,0 +1,39 @@
+name: Bootstrap YM-CORE X source
+on:
+  push:
+    branches: [main]
+    paths:
+      - "YM-CORE-X-GameDevBrain-Render.zip"
+
+permissions:
+  contents: write
+
+jobs:
+  expand-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Expand project files
+        run: |
+          unzip -q -o YM-CORE-X-GameDevBrain-Render.zip -d .
+          rm YM-CORE-X-GameDevBrain-Render.zip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile Python source
+        run: python -m compileall -q app.py setup.py tests
+      - name: Run smoke tests
+        run: python -m unittest discover -s tests -v
+      - name: Commit expanded source tree
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add YM-CORE X 2.1.0 source tree"
+          git push origin HEAD:main
