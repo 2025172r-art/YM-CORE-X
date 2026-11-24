@@ -17,8 +17,6 @@ services:
         sync: false
       - key: SESSION_SECRET
         generateValue: true
-      - key: POLLINATIONS_API_KEY
-        sync: false
       - key: DATABASE_PATH
         value: /tmp/ym-core.db
       - key: SECURE_COOKIES
