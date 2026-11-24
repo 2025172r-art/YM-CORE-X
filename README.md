@@ -1,6 +1,6 @@
 # YM-CORE X — GitHub / Render Edition
 
-日本語UIのプライベートAIワークスペースです。FastAPIサーバーを通じてPollinations APIへ接続し、AIキーをブラウザへ渡さずに利用できます。
+日本語UIのプライベートAIワークスペースです。FastAPIサーバーを通じてGroq APIへ接続し、AIキーをブラウザへ渡さずに利用できます。
 
 ## 主な機能
 
@@ -12,14 +12,14 @@
 - `knowledge/game-dev-playbook-ja.md` をサーバー側の専門ナレッジとしてシステム指示へ注入
 - プロジェクト共通知識（エンジン版、命名規則、性能目標、ゲーム仕様）を設定に保存し、毎回の依頼に付与
 - 最大12個のテキスト/ソースコードファイルを同時添付（1ファイル1MB、合計3MB、モデルに渡す本文は最大160,000文字）
-- AIモデル一覧はAPIから動的取得。初期モデルは `openai/gpt-6.2-astra`
+- AIモデル一覧はAPIから動的取得。初期モデルは `llama-3.3-70b-versatile`
 - 自動読み上げは初期設定OFF。必要な回答だけ個別の読み上げボタンで再生可能
 
 
 - FastAPIバックエンドとSQLiteによる会話保存
 - パスワードログイン、署名付きHttpOnlyセッション、SameSite Cookie、CSRFトークン
 - 12文字以上のワークスペースパスワード検証、ログイン試行制限
-- PollinationsのOpenAI互換Chat Completions APIをサーバーから利用
+- GroqのOpenAI互換Chat Completions APIをサーバーから利用
 - `/v1/models` からモデル一覧を取得
 - Server-Sent Eventsによる逐次生成、生成停止、最後の回答の再生成
 - 会話の新規作成、検索、名前変更、削除、Markdown/JSONエクスポート
@@ -49,7 +49,7 @@
 3. `render.yaml` が検出されたら内容を確認して作成します。
 4. 初回セットアップで次の秘密値を入力します。
    - `APP_PASSWORD`: 12文字以上の、他のサービスと使い回さないパスワード
-   - `POLLINATIONS_API_KEY`: PollinationsのAPIキー。未入力ならログイン後の画面は開きますがAI生成は使えません。
+   - `GROQ_API_KEY`: GroqのAPIキー。未入力ならログイン後の画面は開きますがAI生成は使えません。
    - `SESSION_SECRET`: Blueprintで自動生成されます。手動で上書きする必要はありません。
 5. デプロイ完了後、Renderが表示する `https://....onrender.com` のURLを開き、`APP_PASSWORD` でログインします。
 
@@ -144,12 +144,12 @@ Game Dev Brainは専門ナレッジと作業手順を強化したチャット支
 python -m unittest discover -s tests -v
 ```
 
-テストはログイン、チャットCRUD、CSRF保護、APIキー未設定時のエラー、基本的なセキュリティヘッダーを確認します。Pollinationsへの実際の生成リクエストはAPIキーとネットワーク環境が必要なため、テストには含めていません。
+テストはログイン、チャットCRUD、CSRF保護、APIキー未設定時のエラー、基本的なセキュリティヘッダーを確認します。Groqへの実際の生成リクエストはAPIキーとネットワーク環境が必要なため、テストには含めていません。
 
 ## ローカル構成の要件
 
 - Python 3.11以上
-- Pollinations APIキー（AI生成を使う場合）
+- Groq APIキー（AI生成を使う場合）
 - SQLiteはローカルでは `data/ym-core.db`、Renderの初期無料構成では `/tmp/ym-core.db` に保存
 
 音声入力はブラウザのWeb Speech API対応状況に依存します。添付できるのは最大1MBのテキスト系ファイルです。ファイル本文は会話内容としてAIサービスへ送信されます。

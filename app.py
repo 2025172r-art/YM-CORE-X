@@ -29,11 +29,11 @@ load_dotenv(BASE_DIR / ".env")
 APP_NAME = os.getenv("APP_NAME", "YM-CORE X")
 APP_PASSWORD = os.getenv("APP_PASSWORD", "")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "")
-POLLINATIONS_API_KEY = os.getenv("POLLINATIONS_API_KEY", "")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 DATABASE_PATH = Path(os.getenv("DATABASE_PATH", str(BASE_DIR / "data" / "ym-core.db")))
 DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
 SECURE_COOKIES = os.getenv("SECURE_COOKIES", "false").lower() in {"1", "true", "yes"}
-POLLINATIONS_BASE = "https://gen.pollinations.ai"
+GROQ_BASE = "https://api.groq.com/openai/v1"
 GAME_DEV_KNOWLEDGE_PATH = BASE_DIR / "knowledge" / "game-dev-playbook-ja.md"
 try:
     GAME_DEV_KNOWLEDGE = GAME_DEV_KNOWLEDGE_PATH.read_text(encoding="utf-8")
@@ -190,7 +190,7 @@ class ChatRenameBody(BaseModel):
 
 class ChatRequest(BaseModel):
     content: str = Field(default="", max_length=400000)
-    model: str = Field(default="openai/gpt-6.2-astra", min_length=1, max_length=160)
+    model: str = Field(default="llama-3.3-70b-versatile", min_length=1, max_length=160)
     system_prompt: str = Field(default="", max_length=5000)
     assistant_mode: Literal["general", "game_dev"] = "game_dev"
     game_engine: Literal["auto", "unity", "unreal", "godot", "roblox", "web", "other"] = "auto"
@@ -255,7 +255,7 @@ async def bootstrap(request: Request) -> dict[str, Any]:
         "authenticated": bool(request.session.get("authenticated")),
         "csrf": get_csrf(request),
         "auth_configured": configured,
-        "api_configured": bool(POLLINATIONS_API_KEY),
+        "api_configured": bool(GROQ_API_KEY),
     }
 
 
@@ -298,7 +298,7 @@ async def health() -> dict[str, Any]:
     return {
         "status": "ok",
         "database": DATABASE_PATH.exists(),
-        "api_key_configured": bool(POLLINATIONS_API_KEY),
+        "api_key_configured": bool(GROQ_API_KEY),
         "version": "2.1.0",
         "game_dev_brain": bool(GAME_DEV_KNOWLEDGE),
     }
@@ -307,8 +307,10 @@ async def health() -> dict[str, Any]:
 @app.get("/api/models")
 async def models(_: None = Depends(require_auth)) -> dict[str, Any]:
     try:
+        if not GROQ_API_KEY:
+            raise HTTPException(status_code=503, detail="サーバーに GROQ_API_KEY が設定されていません")
         async with httpx.AsyncClient(timeout=20) as client:
-            response = await client.get(f"{POLLINATIONS_BASE}/v1/models")
+            response = await client.get(f"{GROQ_BASE}/models", headers={"Authorization": f"Bearer {GROQ_API_KEY}"})
             response.raise_for_status()
             payload = response.json()
         raw = payload if isinstance(payload, list) else (payload.get("data", []) if isinstance(payload, dict) else [])
@@ -317,13 +319,15 @@ async def models(_: None = Depends(require_auth)) -> dict[str, Any]:
             if not isinstance(item, dict) or not item.get("id"):
                 continue
             model_id = str(item["id"])
+            if any(x in model_id.lower() for x in ("whisper", "tts", "guard", "orpheus", "playai")):
+                continue  # not chat models
             # The v1 catalog is text-oriented in this endpoint; filter out obvious non-chat entries.
             output.append({
                 "id": model_id,
                 "name": item.get("name") or model_id,
                 "publisher": item.get("owned_by") or item.get("publisher") or "",
             })
-        output.sort(key=lambda x: (not x["id"].startswith("openai/"), x["id"].lower()))
+        output.sort(key=lambda x: (x["id"] != "llama-3.3-70b-versatile", x["id"].lower()))
         return {"models": output, "count": len(output)}
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"モデル一覧を取得できませんでした: {exc.__class__.__name__}") from exc
@@ -419,8 +423,8 @@ def message_rows(chat_id: str) -> list[dict[str, str]]:
 async def stream_chat(chat_id: str, body: ChatRequest, request: Request, _: None = Depends(require_auth)) -> StreamingResponse:
     require_csrf(request)
     verify_chat(chat_id)
-    if not POLLINATIONS_API_KEY:
-        raise HTTPException(status_code=503, detail="サーバーに POLLINATIONS_API_KEY が設定されていません")
+    if not GROQ_API_KEY:
+        raise HTTPException(status_code=503, detail="サーバーに GROQ_API_KEY が設定されていません")
 
     with connect_db() as conn:
         existing = conn.execute("SELECT id FROM messages WHERE chat_id = ? ORDER BY id DESC LIMIT 1", (chat_id,)).fetchone()
@@ -476,7 +480,9 @@ async def stream_chat(chat_id: str, body: ChatRequest, request: Request, _: None
         "temperature": body.temperature,
         "stream": True,
     }
-    if body.reasoning_effort and body.reasoning_effort != "none":
+    mid = body.model.lower()
+    if body.reasoning_effort and body.reasoning_effort != "none" and ("gpt-oss" in mid or "qwen3" in mid):
+        # Groq accepts reasoning_effort only on reasoning-capable models.
         payload["reasoning_effort"] = body.reasoning_effort
     if body.max_tokens:
         payload["max_tokens"] = body.max_tokens
@@ -488,9 +494,9 @@ async def stream_chat(chat_id: str, body: ChatRequest, request: Request, _: None
             async with httpx.AsyncClient(timeout=timeout) as client:
                 async with client.stream(
                     "POST",
-                    f"{POLLINATIONS_BASE}/v1/chat/completions",
+                    f"{GROQ_BASE}/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {POLLINATIONS_API_KEY}",
+                        "Authorization": f"Bearer {GROQ_API_KEY}",
                         "Content-Type": "application/json",
                         "Accept": "text/event-stream",
                     },

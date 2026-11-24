@@ -19,7 +19,7 @@
   };
 
   const DEFAULTS = {
-    model: 'openai/gpt-6.2-astra',
+    model: 'llama-3.3-70b-versatile',
     systemPrompt: '日本語で、正確・親切・実用的に回答してください。不明点は推測せず明確にしてください。',
     assistantMode: 'game_dev',
     gameEngine: 'auto',
@@ -133,9 +133,9 @@
       const connected = Boolean(health.api_key_configured || apiConfigured);
       $('#statusDot').className = `status-dot ${connected ? 'online' : 'offline'}`;
       $('#statusText').textContent = connected ? 'サーバー接続済み · AI利用可能' : 'サーバー接続済み · APIキー未設定';
-      $('#apiKeyStatus').textContent = connected ? '● サーバーにAI APIキーが設定されています' : '● POLLINATIONS_API_KEY が未設定です';
+      $('#apiKeyStatus').textContent = connected ? '● サーバーにAI APIキーが設定されています' : '● GROQ_API_KEY が未設定です';
       $('#serverFoot').textContent = connected ? '会話はこのサーバーに保存されます' : 'サーバーにAPIキーを設定するとAIを利用できます';
-      if (!connected) toast('Renderの環境変数（ローカルでは .env）に POLLINATIONS_API_KEY を設定してください', 5000);
+      if (!connected) toast('Renderの環境変数（ローカルでは .env）に GROQ_API_KEY を設定してください', 5000);
     } catch (error) {
       $('#statusDot').className = 'status-dot offline';
       $('#statusText').textContent = 'サーバー状態を確認できません';
@@ -147,6 +147,7 @@
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem('ymcore-settings') || '{}'); } catch { saved = {}; }
     if (saved.model === 'openai/gpt-5.4-nano') saved.model = DEFAULTS.model;
+    if (saved.model === 'llama-3.3-70b-versatile' || String(saved.model || '').startsWith('openai/gpt-6')) saved.model = DEFAULTS.model;
     const settings = { ...DEFAULTS, ...saved };
     $('#systemPrompt').value = settings.systemPrompt;
     $('#assistantMode').value = settings.assistantMode;

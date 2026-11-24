@@ -5,7 +5,7 @@
 3. GitHubでコミットして `main` へPushします。
 4. Render Dashboardで **New → Blueprint** を選び、対象リポジトリを接続します。
 5. Renderが `render.yaml` を読み込んだら作成します。
-6. 初回プロンプトで `APP_PASSWORD`（12文字以上）と `POLLINATIONS_API_KEY` を入力します。`SESSION_SECRET` は自動生成されます。
+6. 初回プロンプトで `APP_PASSWORD`（12文字以上）と `GROQ_API_KEY` を入力します。`SESSION_SECRET` は自動生成されます。
 7. デプロイ後に `onrender.com` のURLへアクセスし、APP_PASSWORDでログインします。
 
 ## デプロイ設定
@@ -28,7 +28,7 @@
 
 - 初期モードは Game Dev Brain（Unity / Unreal / Godot / Roblox / Web対応）
 - `knowledge/game-dev-playbook-ja.md` をサーバーから毎回のゲーム制作依頼へ注入
-- 初期モデル `openai/gpt-6.2-astra`（モデル一覧APIから選択可能）
+- 初期モデル `llama-3.3-70b-versatile`（モデル一覧APIから選択可能）
 - 自動読み上げは初期状態OFF
 - 最大12個のソースコード/テキストファイルをまとめて添付可能
 

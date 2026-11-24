@@ -8,7 +8,7 @@ from pathlib import Path
 _temp = tempfile.TemporaryDirectory()
 os.environ["APP_PASSWORD"] = "unit-test-password-123"
 os.environ["SESSION_SECRET"] = "unit-test-session-secret-long-enough-for-tests-123456"
-os.environ["POLLINATIONS_API_KEY"] = ""
+os.environ["GROQ_API_KEY"] = ""
 os.environ["DATABASE_PATH"] = str(Path(_temp.name) / "test.db")
 
 from fastapi.testclient import TestClient  # noqa: E402
@@ -98,7 +98,7 @@ class ServerSmokeTests(unittest.TestCase):
         self.assertIn('id="autoRead" type="checkbox"', html)
         self.assertIn("autoRead: false", js)
         self.assertIn("getSettings().autoRead", js)
-        self.assertIn("model: 'openai/gpt-6.2-astra'", js)
+        self.assertIn("model: 'llama-3.3-70b-versatile'", js)
         self.assertIn("multiple accept=", html)
         self.assertIn("function handleFiles(fileList)", js)
         self.assertIn("saved.model === 'openai/gpt-5.4-nano'", js)

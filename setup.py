@@ -28,12 +28,12 @@ def main() -> None:
             continue
         break
 
-    api_key = getpass.getpass("Pollinations APIキー (未設定ならEnter): ").strip()
+    api_key = getpass.getpass("Groq APIキー (未設定ならEnter): ").strip()
     lines = [
         "APP_NAME=YM-CORE X",
         f"APP_PASSWORD={password}",
         f"SESSION_SECRET={secrets.token_urlsafe(48)}",
-        f"POLLINATIONS_API_KEY={api_key}",
+        f"GROQ_API_KEY={api_key}",
         "DATABASE_PATH=./data/ym-core.db",
         "HOST=127.0.0.1",
         "PORT=8000",
@@ -43,7 +43,7 @@ def main() -> None:
     ENV_FILE.write_text("\n".join(lines), encoding="utf-8")
     print("\n.env を作成しました。")
     if not api_key:
-        print("AI接続キーは未設定です。.env の POLLINATIONS_API_KEY に後から設定できます。")
+        print("AI接続キーは未設定です。.env の GROQ_API_KEY に後から設定できます。")
     print("次のコマンドで起動できます: python -m pip install -r requirements.txt && python app.py")
 
 
