@@ -1,0 +1,18 @@
+services:
+  ym-core-x:
+    build: .
+    container_name: ym-core-x
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8000
+      DATABASE_PATH: /app/data/ym-core.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ym_core_data:/app/data
+
+volumes:
+  ym_core_data:

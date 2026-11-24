@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0b1020">
+  <title>YM-CORE X — AI Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script defer src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css">
+  <script defer src="/static/app.js"></script>
+</head>
+<body>
+  <div id="loginScreen" class="login-screen" hidden>
+    <div class="login-card">
+      <div class="brand-mark login-mark">Y</div>
+      <div class="eyebrow">PRIVATE AI WORKSPACE</div>
+      <h1>YM-CORE <span class="gradient-text">X</span></h1>
+      <p class="login-copy">あなた専用のAIワークスペースにログイン</p>
+      <form id="loginForm">
+        <label for="loginPassword">ワークスペースパスワード</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="パスワードを入力" required maxlength="256">
+        <button class="primary-btn login-submit" type="submit">ログイン <span>→</span></button>
+      </form>
+      <p id="loginError" class="form-error" role="alert"></p>
+      <div class="login-foot"><span class="status-dot online"></span> 保護されたサーバー接続</div>
+      <p id="setupNotice" class="setup-notice" hidden>サーバーの環境変数 APP_PASSWORD に12文字以上のパスワードを設定する必要があります。</p>
+    </div>
+  </div>
+
+  <div id="appShell" class="app-shell" hidden>
+    <div id="mobileOverlay" class="mobile-overlay"></div>
+    <aside id="sidebar" class="sidebar">
+      <div class="brand"><div class="brand-mark">Y</div><div><div class="brand-name">YM-CORE</div><div class="brand-sub">X · PRIVATE AI WORKSPACE</div></div></div>
+      <button id="newChatBtn" class="new-chat"><span class="plus">＋</span><span>新しいチャット</span><kbd>⌘ K</kbd></button>
+      <div class="search-wrap"><span>⌕</span><input id="historySearch" type="search" placeholder="会話を検索..." autocomplete="off"></div>
+      <div class="section-row"><span class="section-label">YOUR CONVERSATIONS</span><span id="chatCount" class="count-pill">0</span></div>
+      <div id="historyList" class="history"></div>
+      <div class="sidebar-bottom">
+        <button id="exportMdBtn" class="side-action">↓ Markdown</button>
+        <button id="exportJsonBtn" class="side-action">↓ JSON</button>
+      </div>
+      <div class="profile-row">
+        <div class="profile-avatar">Y</div><div class="profile-info"><strong>Private Workspace</strong><span>サーバー保存 ON</span></div>
+        <button id="logoutBtn" class="logout-btn" title="ログアウト">↗</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="top-left">
+          <button id="mobileMenuBtn" class="top-btn mobile-menu" aria-label="メニュー">☰</button>
+          <div><div class="page-title">INTELLIGENCE CONSOLE</div><div class="connection"><span id="statusDot" class="status-dot"></span><span id="statusText">サーバーに接続中...</span></div></div>
+        </div>
+        <div class="top-actions">
+          <span id="modePill" class="model-pill">GAME DEV BRAIN</span><span id="modelPill" class="model-pill">モデル読み込み中...</span>
+          <button id="themeBtn" class="top-btn" title="テーマ切替">◐</button>
+          <button id="settingsBtn" class="top-btn">⚙ 設定</button>
+        </div>
+      </header>
+
+      <section id="messages" class="messages" aria-live="polite">
+        <div id="welcome" class="welcome">
+          <div class="eyebrow"><span class="sparkle">✦</span> YOUR INTELLIGENCE, AMPLIFIED</div>
+          <h1 class="hero-title">思考を、<br><span class="gradient-text">その先へ。</span></h1>
+          <p class="hero-copy">YM-CORE X は、調査・創作・開発・学習を支えるあなた専用のAIワークスペース。何から始めますか？</p>
+          <div class="quick-grid">
+            <button class="quick-card" data-prompt="このテーマを初心者にもわかるように、重要なポイントと具体例を交えて解説してください：\n"><span class="quick-icon">✧</span><span><strong class="quick-title">深く理解する</strong><span class="quick-copy">難しいテーマを整理して学ぶ</span></span></button>
+            <button class="quick-card" data-prompt="次のアイデアを発展させ、実現方法・必要な機能・改善案まで具体化してください：\n"><span class="quick-icon">◇</span><span><strong class="quick-title">アイデアを広げる</strong><span class="quick-copy">発想を具体的な計画にする</span></span></button>
+            <button class="quick-card" data-prompt="次の要件を満たす、読みやすく保守しやすいコードを作成してください。実装方針と使い方も説明してください：\n"><span class="quick-icon">⌘</span><span><strong class="quick-title">コードを作る</strong><span class="quick-copy">設計から実装までサポート</span></span></button>
+            <button class="quick-card game-quick" data-game-prompt="ゲーム制作を始めたい。まず企画を整理し、コア・ループ、最小プレイ可能版（MVP）、技術構成、最初の実装タスクを提案して：\n"><span class="quick-icon">🎮</span><span><strong class="quick-title">ゲームを作る</strong><span class="quick-copy">企画・設計・実装・最適化を専門支援</span></span></button>
+            <button class="quick-card" data-prompt="次の文章を、意味を変えずにわかりやすく整理して要約してください：\n"><span class="quick-icon">▤</span><span><strong class="quick-title">情報を整理する</strong><span class="quick-copy">長い内容を要点にまとめる</span></span></button>
+          </div>
+        </div>
+      </section>
+
+      <footer class="composer-shell">
+        <div class="template-bar">
+          <button class="template-chip" data-prompt="この文章をわかりやすく要約して：\n">✦ 要約</button>
+          <button class="template-chip" data-prompt="次の文章を自然で読みやすい日本語に校正して：\n">✎ 校正</button>
+          <button class="template-chip" data-prompt="このテーマを初心者向けに順序立てて解説して：\n">▤ 解説</button>
+          <button class="template-chip" data-prompt="次の要件を満たすコードを作成し、使い方も説明して：\n">⌘ コード</button>
+          <button class="template-chip" data-prompt="次の日本語を自然な英語に翻訳して：\n">◎ 翻訳</button>
+        </div>
+        <div class="composer">
+          <div id="fileChip" class="file-chip" hidden><span>📎</span><span id="fileName"></span><button id="removeFileBtn" title="添付を削除">×</button></div>
+          <textarea id="userInput" rows="1" placeholder="YM-CORE X にメッセージを送信...  (Enterで送信 / Shift+Enterで改行)" maxlength="40000"></textarea>
+          <div class="composer-tools">
+            <div class="tool-left">
+              <input id="fileInput" type="file" multiple accept=".txt,.md,.csv,.json,.log,.py,.js,.mjs,.cjs,.ts,.tsx,.jsx,.html,.css,.scss,.cs,.cpp,.c,.h,.hpp,.java,.kt,.gd,.tres,.tscn,.shader,.glsl,.lua,.luau,.rb,.rs,.go,.yaml,.yml,.xml,.toml,.ini,.cfg,.uproject,.unity,.prefab,.csproj,.sln,.godot,text/plain,text/markdown,text/csv,application/json" hidden>
+              <button id="attachBtn" class="tool-btn" title="テキストファイルを添付">＋ 添付</button>
+              <button id="micBtn" class="tool-btn" title="音声入力">⌁ 音声</button>
+              <span id="charCount" class="char-count">0 / 40000</span>
+            </div>
+            <div class="tool-right">
+              <button id="stopBtn" class="stop-btn" hidden>■ 停止</button>
+              <button id="sendBtn" class="send-btn" title="送信">↑</button>
+            </div>
+          </div>
+        </div>
+        <div class="composer-foot"><span><strong>YM-CORE X</strong> · AI can make mistakes. 内容を確認してください。</span><span id="serverFoot">会話はこのサーバーに保存されます</span></div>
+      </footer>
+    </main>
+  </div>
+
+  <div id="settingsBackdrop" class="modal-backdrop" hidden></div>
+  <section id="settingsPanel" class="settings-panel" aria-label="設定" hidden>
+    <div class="settings-head"><div><span class="eyebrow">CONTROL CENTER</span><h2>ワークスペース設定</h2></div><button id="closeSettingsBtn" class="close-btn" aria-label="閉じる">×</button></div>
+    <div class="settings-body">
+      <div class="setting-group"><label for="modelSelect">AIモデル</label><div class="field-row"><select id="modelSelect"><option value="openai/gpt-6.2-astra">openai/gpt-6.2-astra</option></select><button id="refreshModelsBtn" class="secondary-btn" type="button">↻</button></div><small id="modelHelp">高性能モデルを初期選択。最新のモデル一覧はサーバー経由で取得します。</small></div>
+      <div class="setting-group"><label for="assistantMode">AIモード</label><select id="assistantMode"><option value="game_dev" selected>🎮 Game Dev Brain — ゲーム制作特化</option><option value="general">✦ General — 汎用アシスタント</option></select><small>ゲーム制作モードでは、同梱の専門ナレッジとエンジン別の設計基準を常時適用します。</small></div>
+      <div id="gameBrainFields" class="brain-card">
+        <div class="brain-heading"><span>🎮 GAME DEVELOPMENT BRAIN</span><span class="brain-status">SPECIALIST MODE</span></div>
+        <div class="setting-group"><label for="gameEngine">ゲームエンジン</label><select id="gameEngine"><option value="auto">自動判定 / 未定</option><option value="unity">Unity (C#)</option><option value="unreal">Unreal Engine (C++ / Blueprint)</option><option value="godot">Godot (GDScript / C#)</option><option value="roblox">Roblox (Luau)</option><option value="web">Web Game (TypeScript / JavaScript)</option><option value="other">その他</option></select></div>
+        <div class="setting-group"><label for="gameTask">重点タスク</label><select id="gameTask"><option value="auto">依頼内容から自動選択</option><option value="design">企画・ゲームデザイン</option><option value="architecture">アーキテクチャ設計</option><option value="implementation">実装・機能開発</option><option value="debug">デバッグ・バグ修正</option><option value="optimization">パフォーマンス最適化</option><option value="review">コードレビュー</option><option value="release">テスト・リリース準備</option></select></div>
+        <div class="setting-group"><label for="projectContext">プロジェクトの共通知識</label><textarea id="projectContext" rows="4" maxlength="10000" placeholder="例：Unity 6 / 3Dアクション / PC・コントローラー対応 / URP / 目標60FPS / 既存設計やルール..."></textarea><small>ゲームの仕様、世界観、エンジン版、命名規則、性能目標などを保存できます。AIに毎回共有されます。</small></div>
+        <div class="brain-note">要件整理 → 設計 → ファイル単位の実装 → デバッグ → プロファイリング → テストまで、一貫した開発手順で回答します。</div>
+      </div>
+      <div class="setting-group"><label for="systemPrompt">追加指示</label><textarea id="systemPrompt" rows="3" maxlength="5000">日本語で、正確・親切・実用的に回答してください。不明点は推測せず明確にしてください。</textarea><small>基本の品質ルールや専門ナレッジを置き換えず、回答スタイルなどの補足として適用します。</small></div>
+      <div class="setting-group"><label for="temperature">創造性 <strong id="tempValue">0.7</strong></label><input id="temperature" type="range" min="0" max="2" step="0.1" value="0.7"><div class="range-labels"><span>正確・安定</span><span>自由・創造的</span></div></div>
+      <div class="setting-group"><label for="reasoningSelect">推論の強さ</label><select id="reasoningSelect"><option value="none">モデル標準</option><option value="low">Low</option><option value="medium">Medium</option><option value="high" selected>High</option><option value="xhigh">Extra High</option></select><small>対応していないモデルでは無視される場合があります。</small></div>
+      <div class="setting-group"><label for="historyLimit">会話履歴</label><select id="historyLimit"><option value="8">直近8件</option><option value="16">直近16件</option><option value="30">直近30件</option><option value="40" selected>直近40件</option><option value="50">直近50件</option><option value="80">直近80件</option></select></div>
+      <div class="setting-group"><label for="maxTokens">最大出力トークン</label><select id="maxTokens"><option value="2048">2,048</option><option value="4096">4,096</option><option value="8192" selected>8,192</option><option value="16384">16,384</option></select></div>
+      <div class="setting-group"><label class="setting-checkbox" for="autoRead"><input id="autoRead" type="checkbox"> 回答を自動で読み上げる</label><small>初期設定はオフです。読み上げたい回答だけ、各メッセージの「読み上げ」を押して再生できます。</small></div>
+      <div class="security-card"><div class="security-icon">◆</div><div><strong>サーバー保護が有効</strong><p>APIキーはサーバーの環境変数に保存され、ブラウザには送信されません。会話データはSQLiteに保存されます。</p><span id="apiKeyStatus" class="security-status">API接続状態を確認中...</span></div></div>
+    </div>
+    <div class="settings-footer"><button id="resetSettingsBtn" class="secondary-btn">初期設定に戻す</button><button id="saveSettingsBtn" class="primary-btn">設定を保存</button></div>
+  </section>
+  <div id="toast" class="toast" role="status"></div>
+  <div id="confirmBackdrop" class="modal-backdrop" hidden></div>
+  <section id="confirmDialog" class="confirm-dialog" hidden>
+    <h3 id="confirmTitle">確認</h3><p id="confirmText"></p><div><button id="confirmCancel" class="secondary-btn">キャンセル</button><button id="confirmOk" class="danger-btn">削除する</button></div>
+  </section>
+</body>
+</html>
